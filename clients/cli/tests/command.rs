@@ -5475,7 +5475,7 @@ async fn multisig_pause(test_validator: &TestValidator, payer: &Keypair) {
 }
 
 async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
-    let config =
+    let mut config =
         test_config_with_default_signer(test_validator, payer, &spl_token_2022_interface::id());
 
     let token = Keypair::new();
@@ -5484,6 +5484,7 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     let token = token.pubkey();
 
     let burn_authority = Keypair::new();
+    let expected_authority = burn_authority.pubkey().to_string();
     let burn_authority_keypair_file = NamedTempFile::new().unwrap();
     write_keypair_file(&burn_authority, &burn_authority_keypair_file).unwrap();
 
@@ -5495,7 +5496,7 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
             CommandName::CreateToken.into(),
             token_keypair_file.path().to_str().unwrap(),
             "--permissioned-burn",
-            burn_authority.pubkey().to_string().as_str(),
+            expected_authority.as_str(),
         ],
     )
     .await
@@ -5507,6 +5508,39 @@ async fn permissioned_burn(test_validator: &TestValidator, payer: &Keypair) {
     assert_eq!(
         Option::<Pubkey>::from(extension.authority),
         Some(burn_authority.pubkey())
+    );
+
+    config.output_format = OutputFormat::Display;
+    let human_output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    let human_has_section = human_output.contains("Permissioned Burn:");
+    let human_has_authority = human_output.contains(&expected_authority);
+
+    config.output_format = OutputFormat::JsonCompact;
+    let json_output = process_test_command(
+        &config,
+        payer,
+        &["spl-token", CommandName::Display.into(), &token.to_string()],
+    )
+    .await
+    .unwrap();
+    let json: serde_json::Value = serde_json::from_str(&json_output).unwrap();
+    let json_has_extension_and_authority =
+        json["extensions"].as_array().is_some_and(|extensions| {
+            extensions.iter().any(|extension| {
+                extension["extension"] == "permissionedBurnConfig"
+                    && extension["state"]["authority"] == expected_authority
+            })
+        });
+
+    assert!(
+        human_has_section && human_has_authority && json_has_extension_and_authority,
+        "Permissioned Burn display regression: human section present = {human_has_section}, human authority present = {human_has_authority}, JSON extension and authority present = {json_has_extension_and_authority}\nHuman output:\n{human_output}\nJSON output:\n{json_output}"
     );
 
     // do a burn

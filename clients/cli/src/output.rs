@@ -10,9 +10,9 @@ use {
             UiConfidentialTransferFeeConfig, UiConfidentialTransferMint, UiCpiGuard,
             UiDefaultAccountState, UiExtension, UiGroupMemberPointer, UiGroupPointer,
             UiInterestBearingConfig, UiMemoTransfer, UiMetadataPointer, UiMintCloseAuthority,
-            UiPausableConfig, UiPermanentDelegate, UiScaledUiAmountConfig, UiTokenGroup,
-            UiTokenGroupMember, UiTokenMetadata, UiTransferFeeAmount, UiTransferFeeConfig,
-            UiTransferHook, UiTransferHookAccount,
+            UiPausableConfig, UiPermanentDelegate, UiPermissionedBurnConfig,
+            UiScaledUiAmountConfig, UiTokenGroup, UiTokenGroupMember, UiTokenMetadata,
+            UiTransferFeeAmount, UiTransferFeeConfig, UiTransferHook, UiTransferHookAccount,
         },
     },
     solana_cli_output::{display::writeln_name_value, OutputFormat, QuietDisplay, VerboseDisplay},
@@ -697,6 +697,14 @@ fn display_ui_extension(
                 authority.as_ref().unwrap_or(&String::new()),
             )?;
             writeln_name_value(f, "    Status:", if *paused { "Paused" } else { "Active" })
+        }
+        UiExtension::PermissionedBurnConfig(UiPermissionedBurnConfig { authority }) => {
+            writeln!(f, "  {}", style("Permissioned Burn:").bold())?;
+            writeln_name_value(
+                f,
+                "    Authority:",
+                authority.as_ref().unwrap_or(&String::new()),
+            )
         }
         UiExtension::PausableAccount => writeln!(f, "  {}", style("Pausable account").bold()),
         UiExtension::CpiGuard(UiCpiGuard { lock_cpi }) => writeln_name_value(
